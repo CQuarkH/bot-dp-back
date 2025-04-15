@@ -1,5 +1,6 @@
 import spacy
 from spacy.matcher import Matcher
+import requests
 
 # modulo de procesamiento de lenguaje natural
 nlp = spacy.load("es_core_news_sm")
@@ -39,12 +40,24 @@ def get_weather_response():
     return "El clima hoy es soleado con una temperatura de 25°C."
 
 def get_uf_response():
-    # TODO: conectar a una API financiera para obtener el valor actual de la UF.
-    return "El valor actual de la UF es 30.000 CLP."
+    try:
+        response = requests.get("https://mindicador.cl/api")
+        response.raise_for_status() 
+        data = response.json()
+        uf_value = data["uf"]["valor"]
+        return f"El valor actual de la UF es ${uf_value:.2f} CLP."
+    except requests.RequestException as e:
+        return f"No se pudo obtener el valor de la UF. Error: {e}"
 
 def get_dollar_response():
-    # TODO: conectar a una API financiera para obtener el valor actual del dólar.
-    return "El valor actual del dólar es 800 CLP."
+    try:
+        response = requests.get("https://mindicador.cl/api")
+        response.raise_for_status()  
+        data = response.json()
+        dollar_value = data["dolar"]["valor"]
+        return f"El valor actual del dólar es ${dollar_value:.2f} CLP."
+    except requests.RequestException as e:
+        return f"No se pudo obtener el valor del dólar. Error: {e}"
 
 def get_news_response():
     # TODO: conectar a una API de noticias para obtener las últimas noticias.
@@ -55,10 +68,6 @@ def get_news_response():
 # =============================================================================
 
 def process_instruction(text: str):
-    """
-    Procesa la instrucción recibida desde la interfaz de usuario.
-    Usa SpaCy para analizar el texto y el Matcher para detectar intenciones.
-    """
     doc = nlp(text)
     matches = matcher(doc)
     intents = set()
@@ -91,10 +100,6 @@ def process_instruction(text: str):
 
 # interfaz de prueba para el bot
 def main():
-    """
-    Función principal que simula la interacción con el usuario.
-    Permite el ingreso de instrucciones y muestra la respuesta generada.
-    """
     print("Bienvenido al BOT. Escribe tu consulta (escribe 'salir' para finalizar):")
     while True:
         user_input = input(">> ")
