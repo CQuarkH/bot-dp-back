@@ -59,9 +59,34 @@ def get_dollar_response():
     except requests.RequestException as e:
         return f"No se pudo obtener el valor del dólar. Error: {e}"
 
+
 def get_news_response():
-    # TODO: conectar a una API de noticias para obtener las últimas noticias.
-    return "Las noticias de hoy: La economía global muestra signos de recuperación."
+    api_key = "dbc3f7face4f57606d7a0046577ec01b"
+    url = (
+        f"https://gnews.io/api/v4/top-headlines"
+        f"?lang=es"
+        f"&max=5"
+        f"&apikey={api_key}"
+    )
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        articles = data.get("articles", [])[:5]
+        if not articles:
+            return "No se encontraron noticias actuales."
+
+        news = "\n\n".join(
+            f"Titulo: {a.get('title', 'Sin título')}\n"
+            f"Descripcion: {a.get('description', 'Sin descripción')}\n"
+            f"URL: {a.get('url', '')}"
+            for a in articles
+        )
+        return news
+
+    except requests.RequestException as e:
+        return f"No se pudo obtener las noticias. Error: {e}"
 
 # =============================================================================
 # Función para procesar la instrucción del usuario (Capa de Lógica)
