@@ -3,6 +3,7 @@ from spacy.matcher import Matcher
 import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from datetime import datetime, timedelta
 
 # modulo de procesamiento de lenguaje natural
 nlp = spacy.load("es_core_news_sm")
@@ -42,8 +43,71 @@ matcher.add("NEWS", [pattern_news])
 
 
 def get_weather_response():
-    # TODO conectar a una API de clima para obtener el pronóstico actual.
-    return "El clima hoy es soleado con una temperatura de 25°C."
+    # OpenWeatherMap API (Clima actual)
+    owm_api_key = "81bfff14539fcfc8f61b3322fa84d4a2"
+    city = "Temuco,CL"
+    url_current = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={owm_api_key}&units=metric&lang=es"
+
+    try:
+        # Obtener el clima actual desde OpenWeatherMap
+        response_current = requests.get(url_current)
+        response_current.raise_for_status()
+        data_current = response_current.json()
+
+        temperature = data_current["main"]["temp"]
+        description = data_current["weather"][0]["description"].capitalize()
+        humidity = data_current["main"]["humidity"]
+        wind_speed = data_current["wind"]["speed"]
+
+        result = (
+            f"El clima en Temuco es: {description}."
+            f"Temperatura actual: {temperature}°C."
+            f"Humedad: {humidity}%."
+            f"Viento: {wind_speed} m/s."
+        )
+
+    except requests.RequestException as e:
+        result = f"No se pudo obtener el clima de Temuco. Error: {e}"
+
+    # Obtener la temperatura de ayer y mañana desde WeatherAPI
+    api_key_weatherapi = "7826ff2c76404223bd3215456251804"
+    city_weatherapi = "Temuco"
+
+    # Fecha de ayer y mañana
+    yesterday = datetime.now() - timedelta(days=1)
+    yesterday_date = yesterday.strftime('%Y-%m-%d')
+    tomorrow = datetime.now() + timedelta(days=1)
+    tomorrow_date = tomorrow.strftime('%Y-%m-%d')
+
+    # URL para obtener datos históricos (ayer)
+    url_yesterday = f"http://api.weatherapi.com/v1/history.json?key={api_key_weatherapi}&q={city_weatherapi}&dt={yesterday_date}&lang=es"
+
+    try:
+        # Consultar los datos históricos para ayer
+        response_yesterday = requests.get(url_yesterday)
+        response_yesterday.raise_for_status()
+        data_yesterday = response_yesterday.json()
+
+        yesterday_temp = data_yesterday["forecast"]["forecastday"][0]["day"]["avgtemp_c"]
+        result += f"Temperatura de ayer: {yesterday_temp}°C."
+    except requests.RequestException as e:
+        result += f"No se pudo obtener los datos históricos de ayer. Error: {e}"
+
+    # URL para obtener el pronóstico para mañana
+    url_tomorrow = f"http://api.weatherapi.com/v1/forecast.json?key={api_key_weatherapi}&q={city_weatherapi}&dt={tomorrow_date}&lang=es"
+
+    try:
+        # Consultar los datos del pronóstico para mañana
+        response_tomorrow = requests.get(url_tomorrow)
+        response_tomorrow.raise_for_status()
+        data_tomorrow = response_tomorrow.json()
+
+        tomorrow_temp = data_tomorrow["forecast"]["forecastday"][0]["day"]["avgtemp_c"]
+        result += f"Temperatura pronosticada para mañana: {tomorrow_temp}°C."
+    except requests.RequestException as e:
+        result += f"No se pudo obtener el pronóstico para mañana. Error: {e}"
+
+    return result
 
 
 def get_uf_response():
