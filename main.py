@@ -1,6 +1,8 @@
 import spacy
 from spacy.matcher import Matcher
 import requests
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 # modulo de procesamiento de lenguaje natural
 nlp = spacy.load("es_core_news_sm")
@@ -8,18 +10,21 @@ nlp = spacy.load("es_core_news_sm")
 matcher = Matcher(nlp.vocab)
 
 # tokens para el clima
-pattern_weather = [{"LOWER": {"IN": ["clima", "tiempo", "temperatura", "pronóstico", "pronostico"]}}]
+pattern_weather = [
+    {"LOWER": {"IN": ["clima", "tiempo", "temperatura", "pronóstico", "pronostico"]}}]
 
 # tokens para la uf chilena
 pattern_uf = [
     {"LOWER": {"IN": ["uf", "unidad", "fomento"]}},
-    {"LOWER": {"IN": ["valor", "precio", "cotización", "cotizacion"]}, "OP": "?"}
+    {"LOWER": {"IN": ["valor", "precio",
+                      "cotización", "cotizacion"]}, "OP": "?"}
 ]
 
 # tokens para el dólar
 pattern_dollar = [
     {"LOWER": {"IN": ["dolar", "usd", "us$"]}},
-    {"LOWER": {"IN": ["valor", "precio", "cotización", "cotizacion"]}, "OP": "?"}
+    {"LOWER": {"IN": ["valor", "precio",
+                      "cotización", "cotizacion"]}, "OP": "?"}
 ]
 
 # tokens para las noticias
@@ -35,24 +40,27 @@ matcher.add("NEWS", [pattern_news])
 # PROCESAMIENTO DE INSTRUCCIONES
 # =============================================================================
 
+
 def get_weather_response():
     # TODO conectar a una API de clima para obtener el pronóstico actual.
     return "El clima hoy es soleado con una temperatura de 25°C."
 
+
 def get_uf_response():
     try:
         response = requests.get("https://mindicador.cl/api")
-        response.raise_for_status() 
+        response.raise_for_status()
         data = response.json()
         uf_value = data["uf"]["valor"]
         return f"El valor actual de la UF es ${uf_value:.2f} CLP."
     except requests.RequestException as e:
         return f"No se pudo obtener el valor de la UF. Error: {e}"
 
+
 def get_dollar_response():
     try:
         response = requests.get("https://mindicador.cl/api")
-        response.raise_for_status()  
+        response.raise_for_status()
         data = response.json()
         dollar_value = data["dolar"]["valor"]
         return f"El valor actual del dólar es ${dollar_value:.2f} CLP."
@@ -92,25 +100,26 @@ def get_news_response():
 # Función para procesar la instrucción del usuario (Capa de Lógica)
 # =============================================================================
 
+
 def process_instruction(text: str):
     doc = nlp(text)
     matches = matcher(doc)
     intents = set()
-    
+
     # revisar todas las coincidencias
     for match_id, start, end in matches:
         intent = nlp.vocab.strings[match_id]
         intents.add(intent)
-    
+
     # si no se encuentra ninguna coincidencia, se devuelve un mensaje de error.
     if not intents:
         return "Lo siento, no entendí la instrucción."
-    
+
     # en caso de múltiples intenciones, se podría implementar una lógica de prioridad.
     # aquí se selecciona arbitrariamente la primera intención encontrada.
     # (aunque el viejo no mencionó nada de prioridades)
     selected_intent = intents.pop()
-    
+
     if selected_intent == "WEATHER":
         return get_weather_response()
     elif selected_intent == "UF":
@@ -123,17 +132,25 @@ def process_instruction(text: str):
         return "Lo siento, no puedo procesar esa instrucción."
 
 
-# interfaz de prueba para el bot
-def main():
-    print("Bienvenido al BOT. Escribe tu consulta (escribe 'salir' para finalizar):")
-    while True:
-        user_input = input(">> ")
-        if user_input.strip().lower() in ["salir", "exit", "quit"]:
-            print("Adiós!")
-            break
-        response = process_instruction(user_input)
-        print(response)
+app = Flask(__name__)
+CORS(app)  # Habilitar CORS para todas las rutas
+
+
+@app.route("/")
+def home():
+    return jsonify({"consulta": "Bienvenido al BOT API de Clima, UF, Dólar y Noticias"})
+
+
+@app.route("/consulta", methods=["POST"])
+def consulta():
+    data = request.get_json()
+    if not data or "consulta" not in data:
+        return jsonify({"error": "Falta el campo 'mensaje' en el cuerpo de la solicitud."}), 400
+
+    user_input = data["mensaje"]
+    respuesta = process_instruction(user_input)
+    return jsonify({"respuesta": respuesta} if isinstance(respuesta, str) else respuesta)
 
 
 if __name__ == "__main__":
-    main()
+    app.run(debug=True)
