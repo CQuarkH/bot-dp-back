@@ -23,7 +23,7 @@ pattern_dollar = [
 ]
 
 # tokens para las noticias
-pattern_news = [{"LOWER": {"IN": ["noticias", "noticia", "prensa", "actualidad", "últimas", "ultimas"]}}]
+pattern_news = [{"LOWER": {"IN": ["noticias", "noticia", "prensa", "actualidad", "últimas", "ultimas", "titulares"]}}]
 
 
 matcher.add("WEATHER", [pattern_weather])
