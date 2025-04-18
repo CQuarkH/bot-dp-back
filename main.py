@@ -147,7 +147,7 @@ def consulta():
     if not data or "consulta" not in data:
         return jsonify({"error": "Falta el campo 'mensaje' en el cuerpo de la solicitud."}), 400
 
-    user_input = data["mensaje"]
+    user_input = data["consulta"]
     respuesta = process_instruction(user_input)
     return jsonify({"respuesta": respuesta} if isinstance(respuesta, str) else respuesta)
 
