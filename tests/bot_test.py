@@ -5,12 +5,16 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from main import app  
+from main import app, process_instruction  
 
 @pytest.fixture
 def client():
     with app.test_client() as client:
         yield client
+
+# -------------------------------
+# Black Box Tests
+# -------------------------------
 
 def test_tc01_clima(client):
     response = client.post("/consulta", json={"consulta": "¿Cómo está el clima en Temuco?"})
@@ -61,3 +65,32 @@ def test_tc10_sin_consulta(client):
     response = client.post("/consulta", json={})
     assert response.status_code == 400
     assert "error" in response.json
+
+    # -------------------------------
+# White Box Tests
+# -------------------------------
+
+def test_process_instruction_clima_whitebox():
+    texto = "¿Cuál es el pronóstico del clima hoy?"
+    resultado = process_instruction(texto)
+    assert "temperatura" in resultado.lower() or "clima" in resultado.lower()
+
+def test_process_instruction_uf_whitebox():
+    texto = "¿Cuánto vale la unidad de fomento?"
+    resultado = process_instruction(texto)
+    assert "uf" in resultado.lower() or "$" in resultado.lower()
+
+def test_process_instruction_dolar_whitebox():
+    texto = "¿Me puedes decir el precio del dolar?"
+    resultado = process_instruction(texto)
+    assert "dólar" in resultado.lower() or "$" in resultado.lower()
+
+def test_process_instruction_news_whitebox():
+    texto = "Muéstrame las últimas noticias"
+    resultado = process_instruction(texto)
+    assert "titulo" in resultado.lower() or "noticia" in resultado.lower()
+
+def test_process_instruction_no_match_whitebox():
+    texto = "hola"
+    resultado = process_instruction(texto)
+    assert resultado == "Lo siento, no entendí la instrucción."
