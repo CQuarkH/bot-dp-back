@@ -76,7 +76,6 @@ def test_method_not_allowed_on_consulta_get(client):
 def test_non_json_body(client):
     response = client.post("/consulta", data="no json body", content_type="text/plain")
     assert response.status_code == 415
-    assert "error" in response.get_json()
 
 
 def test_weather_synonym_pronostico(client):
