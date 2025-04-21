@@ -23,7 +23,7 @@ pattern_uf = [
 
 # tokens para el dólar
 pattern_dollar = [
-    {"LOWER": {"IN": ["dolar", "usd", "us$"]}},
+    {"LOWER": {"IN": ["dolar", "dólar", "usd", "us$"]}},
     {"LOWER": {"IN": ["valor", "precio",
                       "cotización", "cotizacion"]}, "OP": "?"}
 ]
@@ -181,7 +181,6 @@ def process_instruction(text: str):
 
     # en caso de múltiples intenciones, se podría implementar una lógica de prioridad.
     # aquí se selecciona arbitrariamente la primera intención encontrada.
-    # (aunque el viejo no mencionó nada de prioridades)
     selected_intent = intents.pop()
 
     if selected_intent == "WEATHER":
@@ -210,6 +209,9 @@ def consulta():
     data = request.get_json()
     if not data or "consulta" not in data:
         return jsonify({"error": "Falta el campo 'mensaje' en el cuerpo de la solicitud."}), 400
+    
+    if not data["consulta"]:
+        return jsonify({"error": "El campo 'mensaje' no puede estar vacío."}), 400
 
     user_input = data["consulta"]
     respuesta = process_instruction(user_input)
