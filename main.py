@@ -60,52 +60,49 @@ def get_weather_response():
         wind_speed = data_current["wind"]["speed"]
 
         result = (
-            f"El clima en Temuco es: {description}."
-            f"Temperatura actual: {temperature}°C."
-            f"Humedad: {humidity}%."
-            f"Viento: {wind_speed} m/s."
+            f"El clima en Temuco es: {description}. "
+            f"Temperatura actual: {temperature}°C. "
+            f"Humedad: {humidity}%. "
+            f"Viento: {wind_speed} m/s. "
         )
 
     except requests.RequestException as e:
         result = f"No se pudo obtener el clima de Temuco. Error: {e}"
+        return result
 
-    # Obtener la temperatura de ayer y mañana desde WeatherAPI
+    # WeatherAPI - Temperatura de mañana y pasado mañana
     api_key_weatherapi = "7826ff2c76404223bd3215456251804"
     city_weatherapi = "Temuco"
 
-    # Fecha de ayer y mañana
-    yesterday = datetime.now() - timedelta(days=1)
-    yesterday_date = yesterday.strftime('%Y-%m-%d')
+    # Fechas para mañana y pasado mañana
     tomorrow = datetime.now() + timedelta(days=1)
+    day_after_tomorrow = datetime.now() + timedelta(days=2)
+
     tomorrow_date = tomorrow.strftime('%Y-%m-%d')
+    day_after_tomorrow_date = day_after_tomorrow.strftime('%Y-%m-%d')
 
-    # URL para obtener datos históricos (ayer)
-    url_yesterday = f"http://api.weatherapi.com/v1/history.json?key={api_key_weatherapi}&q={city_weatherapi}&dt={yesterday_date}&lang=es"
-
-    try:
-        # Consultar los datos históricos para ayer
-        response_yesterday = requests.get(url_yesterday)
-        response_yesterday.raise_for_status()
-        data_yesterday = response_yesterday.json()
-
-        yesterday_temp = data_yesterday["forecast"]["forecastday"][0]["day"]["avgtemp_c"]
-        result += f"Temperatura de ayer: {yesterday_temp}°C."
-    except requests.RequestException as e:
-        result += f"No se pudo obtener los datos históricos de ayer. Error: {e}"
-
-    # URL para obtener el pronóstico para mañana
-    url_tomorrow = f"http://api.weatherapi.com/v1/forecast.json?key={api_key_weatherapi}&q={city_weatherapi}&dt={tomorrow_date}&lang=es"
+    # URL para obtener pronóstico extendido
+    url_forecast = f"http://api.weatherapi.com/v1/forecast.json?key={api_key_weatherapi}&q={city_weatherapi}&days=3&lang=es"
 
     try:
-        # Consultar los datos del pronóstico para mañana
-        response_tomorrow = requests.get(url_tomorrow)
-        response_tomorrow.raise_for_status()
-        data_tomorrow = response_tomorrow.json()
+        response_forecast = requests.get(url_forecast)
+        response_forecast.raise_for_status()
+        data_forecast = response_forecast.json()
 
-        tomorrow_temp = data_tomorrow["forecast"]["forecastday"][0]["day"]["avgtemp_c"]
-        result += f"Temperatura pronosticada para mañana: {tomorrow_temp}°C."
+        forecast_days = data_forecast["forecast"]["forecastday"]
+
+        # Buscar temperatura de mañana y pasado mañana
+        for day in forecast_days:
+            date = day["date"]
+            avg_temp = day["day"]["avgtemp_c"]
+
+            if date == tomorrow_date:
+                result += f" Temperatura pronosticada para mañana: {avg_temp}°C."
+            elif date == day_after_tomorrow_date:
+                result += f" Temperatura pronosticada para pasado mañana: {avg_temp}°C."
+
     except requests.RequestException as e:
-        result += f"No se pudo obtener el pronóstico para mañana. Error: {e}"
+        result += f" No se pudo obtener el pronóstico para los próximos días. Error: {e}"
 
     return result
 
@@ -209,7 +206,7 @@ def consulta():
     data = request.get_json()
     if not data or "consulta" not in data:
         return jsonify({"error": "Falta el campo 'mensaje' en el cuerpo de la solicitud."}), 400
-    
+
     if not data["consulta"]:
         return jsonify({"error": "El campo 'mensaje' no puede estar vacío."}), 400
 
