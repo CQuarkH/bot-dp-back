@@ -4,6 +4,21 @@ import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from datetime import datetime, timedelta
+import unicodedata
+import json
+
+def normalize_text(text):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', text)
+        if unicodedata.category(c) != 'Mn'
+    ).lower()
+
+# Cargar lista de ciudades desde el archivo cities.json
+with open("assets/cities.json", encoding="utf-8") as f:
+    cities_data = json.load(f)
+    city_mapping = {
+    normalize_text(city): city for city in cities_data["ciudades"]
+}
 
 # modulo de procesamiento de lenguaje natural
 nlp = spacy.load("es_core_news_sm")
@@ -41,11 +56,11 @@ matcher.add("NEWS", [pattern_news])
 # PROCESAMIENTO DE INSTRUCCIONES
 # =============================================================================
 
-
-def get_weather_response():
+def get_weather_response(city_name="Temuco"):
     # OpenWeatherMap API (Clima actual)
     owm_api_key = "81bfff14539fcfc8f61b3322fa84d4a2"
-    city = "Temuco,CL"
+    city = f"{city_name},CL"
+    city_weatherapi = city_name
     url_current = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={owm_api_key}&units=metric&lang=es"
 
     try:
@@ -60,7 +75,7 @@ def get_weather_response():
         wind_speed = data_current["wind"]["speed"]
 
         result = (
-            f"El clima en Temuco es: {description}. "
+            f"El clima en {city} es: {description}. "
             f"Temperatura actual: {temperature}°C. "
             f"Humedad: {humidity}%. "
             f"Viento: {wind_speed} m/s. "
@@ -167,21 +182,25 @@ def process_instruction(text: str):
     matches = matcher(doc)
     intents = set()
 
-    # revisar todas las coincidencias
+    # Normaliza el texto para compararlo
+    normalized_text = normalize_text(text)
+    detected_city = None
+    for norm_city, original_city in city_mapping.items():
+        if norm_city in normalized_text:
+            detected_city = original_city
+            break
+
     for match_id, start, end in matches:
         intent = nlp.vocab.strings[match_id]
         intents.add(intent)
 
-    # si no se encuentra ninguna coincidencia, se devuelve un mensaje de error.
     if not intents:
         return "Lo siento, no entendí la instrucción."
 
-    # en caso de múltiples intenciones, se podría implementar una lógica de prioridad.
-    # aquí se selecciona arbitrariamente la primera intención encontrada.
     selected_intent = intents.pop()
 
     if selected_intent == "WEATHER":
-        return get_weather_response()
+        return get_weather_response(detected_city if detected_city else "Temuco")
     elif selected_intent == "UF":
         return get_uf_response()
     elif selected_intent == "DOLAR":
