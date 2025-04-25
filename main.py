@@ -6,6 +6,8 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import unicodedata
 import json
+import requests
+from datetime import datetime, timedelta
 
 def normalize_text(text):
     return ''.join(
@@ -56,72 +58,69 @@ matcher.add("NEWS", [pattern_news])
 # PROCESAMIENTO DE INSTRUCCIONES
 # =============================================================================
 
+
 def get_weather_response(city_name="Temuco"):
     owm_api_key = "81bfff14539fcfc8f61b3322fa84d4a2"
     city = f"{city_name},CL"
-    url_current = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={owm_api_key}&units=metric&lang=es"
+    url_current = (
+        f"http://api.openweathermap.org/data/2.5/weather"
+        f"?q={city}&appid={owm_api_key}&units=metric&lang=es"
+    )
 
     try:
-        response_current = requests.get(url_current)
-        response_current.raise_for_status()
-        data_current = response_current.json()
+        resp = requests.get(url_current)
+        resp.raise_for_status()
+        data = resp.json()
 
-        temperature = data_current["main"]["temp"]
-        description = data_current["weather"][0]["description"].capitalize()
-        humidity = data_current["main"]["humidity"]
-        wind_speed = data_current["wind"]["speed"]
+        temperature = data["main"]["temp"]
+        description = data["weather"][0]["description"].capitalize()
+        humidity = data["main"]["humidity"]
+        wind_speed = data["wind"]["speed"]
 
         result = (
             f"El clima actual en {city_name} es: {description}. "
-            f"Temperatura: {temperature}°C. "
+            f"Temperatura actual: {temperature}°C. "
             f"Humedad: {humidity}%. "
-            f"Viento: {wind_speed} m/s. "
+            f"Viento: {wind_speed} m/s."
         )
-
     except requests.RequestException as e:
         result = f"No se pudo obtener el clima actual. Error: {e}"
-        return result
 
-    # WeatherAPI - Temperatura de ayer y mañana
-    api_key_weatherapi = "7826ff2c76404223bd3215456251804"
     base_url = "http://api.weatherapi.com/v1"
+    api_key = "7826ff2c76404223bd3215456251804"
+    yesterday_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+    tomorrow_date  = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
 
-    # Fechas
-    yesterday = datetime.now() - timedelta(days=1)
-    tomorrow = datetime.now() + timedelta(days=1)
-
-    yesterday_date = yesterday.strftime('%Y-%m-%d')
-    tomorrow_date = tomorrow.strftime('%Y-%m-%d')
-
-    # --- Ayer (historial) ---
     try:
-        url_yesterday = f"{base_url}/history.json?key={api_key_weatherapi}&q={city_name}&dt={yesterday_date}&lang=es"
-        response_yesterday = requests.get(url_yesterday)
-        response_yesterday.raise_for_status()
-        data_yesterday = response_yesterday.json()
-        temp_yesterday = data_yesterday["forecast"]["forecastday"][0]["day"]["avgtemp_c"]
-
-        result += f" Temperatura promedio de ayer: {temp_yesterday}°C."
-
+        url_hist = f"{base_url}/history.json?key={api_key}&q={city_name}&dt={yesterday_date}&lang=es"
+        resp = requests.get(url_hist)
+        resp.raise_for_status()
+        temp_yest = resp.json()["forecast"]["forecastday"][0]["day"]["avgtemp_c"]
+        result += f" Temperatura promedio de ayer: {temp_yest}°C."
     except requests.RequestException as e:
-        result += f" No se pudo obtener la temperatura de ayer. Error: {e}"
+        result += " No se pudo obtener la temperatura de ayer"
 
-    # --- Mañana (pronóstico) ---
     try:
-        url_forecast = f"{base_url}/forecast.json?key={api_key_weatherapi}&q={city_name}&days=2&lang=es"
-        response_forecast = requests.get(url_forecast)
-        response_forecast.raise_for_status()
-        data_forecast = response_forecast.json()
+        url_fcast = f"{base_url}/forecast.json?key={api_key}&q={city_name}&days=2&lang=es"
+        resp = requests.get(url_fcast)
+        resp.raise_for_status()
+        forecast_days = resp.json()["forecast"]["forecastday"]
 
-        for day in data_forecast["forecast"]["forecastday"]:
-            if day["date"] == tomorrow_date:
+        # buscamos el que coincida con mañana, si no hay match, usamos el primero
+        temp_tomorrow = None
+        for day in forecast_days:
+            if day.get("date") == tomorrow_date:
                 temp_tomorrow = day["day"]["avgtemp_c"]
-                result += f" Temperatura pronosticada para mañana: {temp_tomorrow}°C."
+                break
+        if temp_tomorrow is None and forecast_days:
+            temp_tomorrow = forecast_days[0]["day"]["avgtemp_c"]
 
+        result += f" Temperatura pronosticada para mañana: {temp_tomorrow}°C."
     except requests.RequestException as e:
-        result += f" No se pudo obtener el pronóstico de mañana. Error: {e}"
+        result += " No se pudo obtener el pronóstico para mañana"
 
     return result
+
 
 def get_uf_response():
     try:
