@@ -57,14 +57,11 @@ matcher.add("NEWS", [pattern_news])
 # =============================================================================
 
 def get_weather_response(city_name="Temuco"):
-    # OpenWeatherMap API (Clima actual)
     owm_api_key = "81bfff14539fcfc8f61b3322fa84d4a2"
     city = f"{city_name},CL"
-    city_weatherapi = city_name
     url_current = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={owm_api_key}&units=metric&lang=es"
 
     try:
-        # Obtener el clima actual desde OpenWeatherMap
         response_current = requests.get(url_current)
         response_current.raise_for_status()
         data_current = response_current.json()
@@ -75,52 +72,56 @@ def get_weather_response(city_name="Temuco"):
         wind_speed = data_current["wind"]["speed"]
 
         result = (
-            f"El clima en {city} es: {description}. "
-            f"Temperatura actual: {temperature}°C. "
+            f"El clima actual en {city_name} es: {description}. "
+            f"Temperatura: {temperature}°C. "
             f"Humedad: {humidity}%. "
             f"Viento: {wind_speed} m/s. "
         )
 
     except requests.RequestException as e:
-        result = f"No se pudo obtener el clima de Temuco. Error: {e}"
+        result = f"No se pudo obtener el clima actual. Error: {e}"
         return result
 
-    # WeatherAPI - Temperatura de mañana y pasado mañana
+    # WeatherAPI - Temperatura de ayer y mañana
     api_key_weatherapi = "7826ff2c76404223bd3215456251804"
-    city_weatherapi = "Temuco"
+    base_url = "http://api.weatherapi.com/v1"
 
-    # Fechas para mañana y pasado mañana
+    # Fechas
+    yesterday = datetime.now() - timedelta(days=1)
     tomorrow = datetime.now() + timedelta(days=1)
-    day_after_tomorrow = datetime.now() + timedelta(days=2)
 
+    yesterday_date = yesterday.strftime('%Y-%m-%d')
     tomorrow_date = tomorrow.strftime('%Y-%m-%d')
-    day_after_tomorrow_date = day_after_tomorrow.strftime('%Y-%m-%d')
 
-    # URL para obtener pronóstico extendido
-    url_forecast = f"http://api.weatherapi.com/v1/forecast.json?key={api_key_weatherapi}&q={city_weatherapi}&days=3&lang=es"
-
+    # --- Ayer (historial) ---
     try:
+        url_yesterday = f"{base_url}/history.json?key={api_key_weatherapi}&q={city_name}&dt={yesterday_date}&lang=es"
+        response_yesterday = requests.get(url_yesterday)
+        response_yesterday.raise_for_status()
+        data_yesterday = response_yesterday.json()
+        temp_yesterday = data_yesterday["forecast"]["forecastday"][0]["day"]["avgtemp_c"]
+
+        result += f" Temperatura promedio de ayer: {temp_yesterday}°C."
+
+    except requests.RequestException as e:
+        result += f" No se pudo obtener la temperatura de ayer. Error: {e}"
+
+    # --- Mañana (pronóstico) ---
+    try:
+        url_forecast = f"{base_url}/forecast.json?key={api_key_weatherapi}&q={city_name}&days=2&lang=es"
         response_forecast = requests.get(url_forecast)
         response_forecast.raise_for_status()
         data_forecast = response_forecast.json()
 
-        forecast_days = data_forecast["forecast"]["forecastday"]
-
-        # Buscar temperatura de mañana y pasado mañana
-        for day in forecast_days:
-            date = day["date"]
-            avg_temp = day["day"]["avgtemp_c"]
-
-            if date == tomorrow_date:
-                result += f" Temperatura pronosticada para mañana: {avg_temp}°C."
-            elif date == day_after_tomorrow_date:
-                result += f" Temperatura pronosticada para pasado mañana: {avg_temp}°C."
+        for day in data_forecast["forecast"]["forecastday"]:
+            if day["date"] == tomorrow_date:
+                temp_tomorrow = day["day"]["avgtemp_c"]
+                result += f" Temperatura pronosticada para mañana: {temp_tomorrow}°C."
 
     except requests.RequestException as e:
-        result += f" No se pudo obtener el pronóstico para los próximos días. Error: {e}"
+        result += f" No se pudo obtener el pronóstico de mañana. Error: {e}"
 
     return result
-
 
 def get_uf_response():
     try:
